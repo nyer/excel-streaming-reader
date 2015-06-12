@@ -60,7 +60,6 @@ public class StreamingReader implements Iterable<Row>, AutoCloseable {
   private int rowCacheSize;
   private List<Row> rowCache = new ArrayList<>();
   private Iterator<Row> rowCacheIterator;
-  private int lastColNum;
   private StreamingRow currentRow;
   private StreamingCell currentCell;
 
@@ -92,6 +91,41 @@ public class StreamingReader implements Iterable<Row>, AutoCloseable {
     return false;
   }
 
+  public int skipRows(int rowCount) {
+	  int count = 0;
+	  while (rowCacheIterator != null && rowCacheIterator.hasNext() && rowCount -- > 0) {
+		  rowCacheIterator.next();
+		  count ++;
+	  }
+	  
+	  if (rowCount > 0) {
+		  count += skipRowEvents(rowCount);
+	  }
+	  
+	  return count;
+  }
+  
+  private int skipRowEvents(int rowCount) {
+	  int count = 0;
+	  try {
+		  while (rowCount > 0 && parser.hasNext()) {
+			  XMLEvent event = parser.nextEvent();
+			  if (event.getEventType() == XMLStreamConstants.END_ELEMENT) {
+				  EndElement endElement = event.asEndElement();
+				  String localPart = endElement.getName().getLocalPart();
+				  if (localPart.equals("row")) {
+					  rowCount --;
+					  count ++;
+				  }
+			  }
+		  }
+	  } catch (XMLStreamException e) {
+		  log.debug("End of stream");
+	  }
+	  
+	  return count;
+  }
+  
   /**
    * Handles a SAX event.
    *
@@ -109,21 +143,13 @@ public class StreamingReader implements Iterable<Row>, AutoCloseable {
         Attribute ref = startElement.getAttributeByName(new QName("r"));
         currentRow = new StreamingRow(Integer.parseInt(ref.getValue()));
         
-        lastColNum = 0;
       } else if (startElement.getName().getLocalPart().equals("c")) {
         Attribute ref = startElement.getAttributeByName(new QName("r"));
         String[] coord = ref.getValue().split("(?<=\\D)(?=\\d)|(?<=\\d)(?=\\D)");
         int currCol = CellReference.convertColStringToIndex(coord[0]);
         int currRow = Integer.parseInt(coord[1]) - 1;
         
-//        // 可能有一些缺口cell
-//        if (currCol - lastColNum > 1) {
-//        	for (int i = lastColNum + 1; i < currCol; i ++) {
-//        		currentRow.getCellMap().put(i, new StreamingCell(i, currRow));
-//        	}
-//        }
         currentCell = new StreamingCell(currCol, currRow);
-        lastColNum = currCol;
 
         Attribute type = startElement.getAttributeByName(new QName("t"));
         String cellType = type == null ? null : type.getValue();
