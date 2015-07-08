@@ -166,12 +166,17 @@ public class StreamingReader implements Iterable<Row>, AutoCloseable {
 		    lastContents = new XSSFRichTextString(sst.getEntryAt(idx)).toString();
 		  }
       } else if (localPart.equals("c")) {
-        currentCell.setContents(lastContents);
-        currentRow.getCellMap().put(currentCell.getColumnIndex(), currentCell);
+    	if (lastContents != null && lastContents.length() > 0) {
+    	  currentCell.setContents(lastContents);
+          currentRow.getCellMap().put(currentCell.getColumnIndex(), currentCell);
+    	}
         
         currentCell = null;
       } else if (localPart.equals("row")) {
-    	rowCache.add(currentRow);
+    	if (currentRow.getCelMap().size() > 0) {
+    		// only add rows having contents
+    		rowCache.add(currentRow);
+    	}
     	
     	currentRow = null;
       }
