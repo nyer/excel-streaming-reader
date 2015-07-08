@@ -173,7 +173,7 @@ public class StreamingReader implements Iterable<Row>, AutoCloseable {
         
         currentCell = null;
       } else if (localPart.equals("row")) {
-    	if (currentRow.getCelMap().size() > 0) {
+    	if (currentRow.getCellMap().size() > 0) {
     		// only add rows having contents
     		rowCache.add(currentRow);
     	}
